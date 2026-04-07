@@ -18,6 +18,7 @@ export default function ProgressScreen() {
   const [stats, setStats] = useState<HabitStat[]>([]);
   const [totalThisWeek, setTotalThisWeek] = useState(0);
   const [weeklyData, setWeeklyData] = useState<number[]>([0,0,0,0,0,0,0]);
+  const [coupleScore, setCoupleScore] = useState(0);
 
   useEffect(() => {
     loadStats();
@@ -70,6 +71,10 @@ export default function ProgressScreen() {
 
     setStats(habitStats);
     setTotalThisWeek(habitStats.reduce((sum, h) => sum + h.weeklyCount, 0));
+    // Couple Score: bu hafta tamamlanan / bu hafta olması gereken * 100
+const totalPossible = habits.length * 7;
+const score = totalPossible > 0 ? Math.round((totalThisWeek / totalPossible) * 100) : 0;
+setCoupleScore(score);
     const days = Array.from({ length: 7 }, (_, i) => {
   const d = new Date();
   d.setDate(d.getDate() - (6 - i));
@@ -88,6 +93,14 @@ setWeeklyData(dailyCounts);
         <Text style={styles.title}>İlerleme 📊</Text>
 
         <View style={styles.summaryCard}>
+          <View style={styles.coupleScoreCard}>
+           <Text style={styles.coupleScoreLabel}>💕 Couple Score</Text>
+            <Text style={styles.coupleScoreNumber}>{coupleScore}</Text>
+          <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${coupleScore}%` }]} />
+           </View>
+          <Text style={styles.coupleScoreHint}>Bu hafta tutarlılık puanın</Text>
+          </View>
           <Text style={styles.summaryNumber}>{totalThisWeek}</Text>
           <Text style={styles.summaryLabel}>Bu hafta tamamlanan</Text>
         </View>
@@ -152,4 +165,10 @@ const styles = StyleSheet.create({
   streakBadge: { backgroundColor: Colors.primaryLight, borderRadius: 8, padding: 8 },
   streakText: { fontSize: 14, fontWeight: 'bold', color: Colors.primaryDark },
   empty: { textAlign: 'center', color: Colors.gray, marginTop: 48 },
+  coupleScoreCard: { backgroundColor: Colors.white, borderRadius: 16, padding: 20, marginBottom: 24 },
+  coupleScoreLabel: { fontSize: 14, color: Colors.gray, marginBottom: 4 },
+  coupleScoreNumber: { fontSize: 42, fontWeight: 'bold', color: Colors.primary, marginBottom: 12 },
+  progressBar: { height: 8, backgroundColor: Colors.primaryLight, borderRadius: 4, marginBottom: 8 },
+  progressFill: { height: 8, backgroundColor: Colors.primary, borderRadius: 4 },
+  coupleScoreHint: { fontSize: 12, color: Colors.gray },
 });
