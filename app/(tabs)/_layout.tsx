@@ -11,6 +11,7 @@ export default function TabLayout() {
       <Tabs.Screen name="index" options={{ title: 'Bugün', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🏠</Text> }} />
       <Tabs.Screen name="progress" options={{ title: 'İlerleme', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>📊</Text> }} />
       <Tabs.Screen name="focus" options={{ title: 'Odak', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>⏱️</Text> }} />
+      <Tabs.Screen name="partner" options={{ title: 'Partner', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>💕</Text> }} />
     </Tabs>
   );
 }
