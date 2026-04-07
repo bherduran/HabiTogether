@@ -8,6 +8,7 @@ import ScreenWrapper from '../components/ScreenWrapper';
 
 const CATEGORIES = ['Sağlık', 'Spor', 'Öğrenme', 'İlişki', 'Diğer'];
 const ICONS = ['💪', '📚', '🧘', '💑', '🏃', '💧', '🎯', '🌱'];
+const DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
 export default function CreateHabitScreen() {
   const [name, setName] = useState('');
@@ -16,6 +17,8 @@ export default function CreateHabitScreen() {
   const [isShared, setIsShared] = useState(false);
   const [loading, setLoading] = useState(false);
   const { editId } = useLocalSearchParams<{ editId?: string }>();
+  const [frequencyType, setFrequencyType] = useState<'daily' | 'weekly' | 'custom'>('daily');
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
 
     useEffect(() => {
   if (editId) {
@@ -26,6 +29,12 @@ export default function CreateHabitScreen() {
         setCategory(data.category);
         setIsShared(data.is_shared);
       }
+       
+       if (data.frequency) {
+  setFrequencyType(data.frequency.type);
+  setSelectedDays(data.frequency.days || []);
+}
+
     });
     }
     }, [editId]);
@@ -47,7 +56,7 @@ export default function CreateHabitScreen() {
       icon,
       category,
       is_shared: isShared,
-      frequency: { type: 'daily' },
+      frequency: { type: frequencyType, days: frequencyType === 'custom' ? selectedDays : [] },
     });
   }
 
@@ -94,6 +103,41 @@ export default function CreateHabitScreen() {
         ))}
       </View>
 
+      <Text style={styles.label}>Sıklık</Text>
+<View style={styles.categoryRow}>
+  {(['daily', 'weekly', 'custom'] as const).map(type => (
+    <TouchableOpacity
+      key={type}
+      style={[styles.categoryButton, frequencyType === type && styles.categorySelected]}
+      onPress={() => setFrequencyType(type)}
+    >
+      <Text style={[styles.categoryText, frequencyType === type && styles.categoryTextSelected]}>
+        {type === 'daily' ? 'Her Gün' : type === 'weekly' ? 'Haftalık' : 'Özel Günler'}
+      </Text>
+    </TouchableOpacity>
+  ))}
+</View>
+
+{frequencyType === 'custom' && (
+  <View style={styles.categoryRow}>
+    {DAYS.map((day, index) => (
+      <TouchableOpacity
+        key={index}
+        style={[styles.dayButton, selectedDays.includes(index) && styles.dayButtonSelected]}
+        onPress={() => {
+          setSelectedDays(prev =>
+            prev.includes(index) ? prev.filter(d => d !== index) : [...prev, index]
+          );
+        }}
+      >
+        <Text style={[styles.categoryText, selectedDays.includes(index) && styles.categoryTextSelected]}>
+          {day}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </View>
+)}
+
       <View style={styles.sharedRow}>
         <Text style={styles.label}>Ortak Alışkanlık</Text>
         <Switch
@@ -133,4 +177,6 @@ const styles = StyleSheet.create({
   button: { backgroundColor: Colors.primary, padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 24 },
   buttonText: { color: Colors.white, fontWeight: 'bold', fontSize: 16 },
   cancel: { textAlign: 'center', color: Colors.gray, marginTop: 12 },
+  dayButton: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white },
+  dayButtonSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
 });
