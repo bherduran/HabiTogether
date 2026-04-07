@@ -87,10 +87,13 @@ export default function HabitDetailScreen() {
 
   // Son 30 günü üret
   const last30Days = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (29 - i));
-    return d.toISOString().split('T')[0];
-  });
+  const d = new Date();
+  d.setDate(d.getDate() - (29 - i));
+  return {
+    date: d.toISOString().split('T')[0],
+    day: d.getDate(),
+  };
+});
 
   if (!habit) return null;
 
@@ -113,17 +116,18 @@ export default function HabitDetailScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>Son 30 Gün</Text>
-        <View style={styles.calendar}>
-          {last30Days.map(date => {
-            const done = completionDates.includes(date);
-            return (
-              <View
-                key={date}
-                style={[styles.calendarDot, done && styles.calendarDotDone]}
-              />
-            );
-          })}
-        </View>
+<View style={styles.calendar}>
+  {last30Days.map(({ date, day }) => {
+    const done = completionDates.includes(date);
+    return (
+      <View key={date} style={[styles.calendarCell, done && styles.calendarCellDone]}>
+        <Text style={[styles.calendarDayText, done && styles.calendarDayTextDone]}>
+          {day}
+        </Text>
+      </View>
+    );
+  })}
+</View>
 
         <TouchableOpacity
           style={styles.editButton}
@@ -157,8 +161,10 @@ const styles = StyleSheet.create({
   streakLabel: { fontSize: 14, color: Colors.white, marginTop: 4 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: Colors.black, marginBottom: 12 },
   calendar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 24 },
-  calendarDot: { width: 28, height: 28, borderRadius: 6, backgroundColor: Colors.border },
-  calendarDotDone: { backgroundColor: Colors.primary },
+  calendarCell: { width: 36, height: 36, borderRadius: 8, backgroundColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
+  calendarCellDone: { backgroundColor: Colors.primary },
+  calendarDayText: { fontSize: 12, color: Colors.gray, fontWeight: '500' },
+  calendarDayTextDone: { color: Colors.white, fontWeight: 'bold' },
   editButton: { backgroundColor: Colors.white, borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
   editButtonText: { color: Colors.black, fontWeight: '600', fontSize: 16 },
   archiveButton: { backgroundColor: Colors.white, borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
