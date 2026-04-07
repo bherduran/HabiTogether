@@ -76,6 +76,7 @@ export default function HomeScreen() {
       .eq('user_id', user.id)
       .eq('completed_date', today);
     setCompletions(prev => prev.filter(id => id !== habitId));
+    setAllCompletions(prev => prev.filter(c => !(c.habit_id === habitId && c.completed_date === today)));
   } else {
     await supabase.from('completions').insert({
       habit_id: habitId,
@@ -83,8 +84,9 @@ export default function HomeScreen() {
       completed_date: today,
     });
     setCompletions(prev => [...prev, habitId]);
+    setAllCompletions(prev => [...prev, { habit_id: habitId, completed_date: today }]);
   }
-  }
+}
   useEffect(() => {
     getProfile();
     getHabits();
@@ -92,7 +94,7 @@ export default function HomeScreen() {
   }, []);
 
   //Calculates Streak
-  function calculateStreak(habitId: string, allCompletions: {habit_id: string, completed_date: string}[]) {
+   function calculateStreak(habitId: string, allCompletions: {habit_id: string, completed_date: string}[]) {
   const dates = allCompletions
     .filter(c => c.habit_id === habitId)
     .map(c => c.completed_date)
@@ -102,16 +104,20 @@ export default function HomeScreen() {
 
   let streak = 0;
   const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  // Bugün tamamlandıysa 0'dan, tamamlanmadıysa dünden başla
+  const startOffset = dates[0] === todayStr ? 0 : 1;
 
   for (let i = 0; i < dates.length; i++) {
     const expected = new Date(today);
-    expected.setDate(today.getDate() - i);
+    expected.setDate(today.getDate() - (i + startOffset));
     const expectedStr = expected.toISOString().split('T')[0];
     if (dates[i] === expectedStr) streak++;
     else break;
   }
   return streak;
-}
+  }
 
   return (
   <View style={styles.container}>
@@ -124,7 +130,20 @@ export default function HomeScreen() {
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
     </View>
-
+    {habits.filter(h => {
+  const streak = calculateStreak(h.id, allCompletions);
+  const completedToday = completions.includes(h.id);
+  return streak > 0 && !completedToday;
+}).length > 0 && (
+  <View style={styles.warningCard}>
+    <Text style={styles.warningText}>
+      ⚠️ {habits.filter(h => {
+        const streak = calculateStreak(h.id, allCompletions);
+        return streak > 0 && !completions.includes(h.id);
+      }).length} streak bugün tehlikede!
+    </Text>
+  </View>
+)}
     <FlatList
       data={habits}
       keyExtractor={item => item.id}
@@ -172,4 +191,6 @@ const styles = StyleSheet.create({
   habitNameCompleted: { textDecorationLine: 'line-through', color: Colors.gray },
   checkbox: { fontSize: 24 },
   streak: { fontSize: 12, color: Colors.accent, marginTop: 2, fontWeight: '600' },
+  warningCard: { backgroundColor: '#FFF3E0', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: Colors.accent },
+  warningText: { color: '#E65100', fontWeight: '600', fontSize: 14 },
 });
