@@ -24,6 +24,7 @@ export default function PartnerScreen() {
   const [partnerHabits, setPartnerHabits] = useState<Habit[]>([]);
   const [inviteInput, setInviteInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [nudgeSent, setNudgeSent] = useState(false);
 
   useEffect(() => {
   loadProfile();
@@ -78,6 +79,21 @@ export default function PartnerScreen() {
       .eq('is_archived', false);
     if (habits) setPartnerHabits(habits);
   }
+
+  async function sendNudge() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !partnerProfile) return;
+
+  await supabase.from('nudges').insert({
+    from_user_id: user.id,
+    to_user_id: partnerProfile.id,
+  });
+
+  setNudgeSent(true);
+  setTimeout(() => setNudgeSent(false), 3000);
+}
+
+
 
   async function linkPartner() {
     if (!inviteInput.trim()) return;
@@ -136,6 +152,15 @@ export default function PartnerScreen() {
             <View style={styles.partnerCard}>
               <Text style={styles.partnerName}>👤 {partnerProfile.display_name}</Text>
               <Text style={styles.partnerStatus}>Bağlı ✓</Text>
+              <TouchableOpacity
+  style={[styles.nudgeButton, nudgeSent && styles.nudgeButtonSent]}
+  onPress={sendNudge}
+  disabled={nudgeSent}
+>
+  <Text style={styles.nudgeButtonText}>
+    {nudgeSent ? '✓ Dürtüldü!' : '👈 Dürtükle'}
+  </Text>
+</TouchableOpacity>
             </View>
 
             <Text style={styles.sectionTitle}>Partnerinin Alışkanlıkları</Text>
@@ -170,4 +195,7 @@ const styles = StyleSheet.create({
   habitCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white, borderRadius: 12, padding: 16, marginBottom: 8 },
   habitIcon: { fontSize: 28, marginRight: 12 },
   habitName: { fontSize: 15, color: Colors.black },
+  nudgeButton: { backgroundColor: Colors.primary, borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 24 },
+  nudgeButtonSent: { backgroundColor: Colors.gray },
+  nudgeButtonText: { color: Colors.white, fontWeight: 'bold', fontSize: 16 },
 });

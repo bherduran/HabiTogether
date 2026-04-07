@@ -19,6 +19,8 @@ export default function HomeScreen() {
   const [allCompletions, setAllCompletions] = useState<{habit_id: string, completed_date: string}[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [milestone, setMilestone] = useState<number | null>(null);
+  const [partnerCompletions, setPartnerCompletions] = useState<{habit_id: string, completed_date: string}[]>([]);
+  const [nudgeAlert, setNudgeAlert] = useState(false);
 
   async function getProfile() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -44,23 +46,39 @@ export default function HomeScreen() {
     if (data) setHabits(data);
   }
 
-  async function getCompletions() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const today = new Date().toISOString().split('T')[0];
-    const { data: todayData } = await supabase
-      .from('completions')
-      .select('habit_id')
-      .eq('user_id', user.id)
-      .eq('completed_date', today);
-    if (todayData) setCompletions(todayData.map(c => c.habit_id));
+ async function getCompletions() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const today = new Date().toISOString().split('T')[0];
 
-    const { data: allData } = await supabase
+  const { data: todayData } = await supabase
+    .from('completions')
+    .select('habit_id')
+    .eq('user_id', user.id)
+    .eq('completed_date', today);
+  if (todayData) setCompletions(todayData.map(c => c.habit_id));
+
+  const { data: allData } = await supabase
+    .from('completions')
+    .select('habit_id, completed_date')
+    .eq('user_id', user.id);
+  if (allData) setAllCompletions(allData);
+
+  // Partner completions
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('partner_id')
+    .eq('id', user.id)
+    .single();
+
+  if (profile?.partner_id) {
+    const { data: partnerData } = await supabase
       .from('completions')
       .select('habit_id, completed_date')
-      .eq('user_id', user.id);
-    if (allData) setAllCompletions(allData);
+      .eq('user_id', profile.partner_id);
+    if (partnerData) setPartnerCompletions(partnerData);
   }
+}
 
   async function toggleCompletion(habitId: string) {
     const { data: { user } } = await supabase.auth.getUser();
@@ -90,52 +108,62 @@ export default function HomeScreen() {
   }
 
   useEffect(() => {
-    getProfile();
-    getHabits();
-    getCompletions();
+  getProfile();
+  getHabits();
+  getCompletions();
 
-    const channel = supabase
-      .channel('home-completions')
+  let channel: ReturnType<typeof supabase.channel>;
+
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (!user) return;
+    channel = supabase
+      .channel('home-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'completions' }, () => getCompletions())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'habits' }, () => getHabits())
       .on('postgres_changes', {
-        event: '*',
+        event: 'INSERT',
         schema: 'public',
-        table: 'completions',
+        table: 'nudges',
+        filter: `to_user_id=eq.${user.id}`,
       }, () => {
-        getCompletions();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'habits',
-      }, () => {
-        getHabits();
+        setNudgeAlert(true);
+        setTimeout(() => setNudgeAlert(false), 5000);
       })
       .subscribe();
+  });
 
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+  return () => { if (channel) supabase.removeChannel(channel); };
+}, []);
 
-  function calculateStreak(habitId: string, allCompletions: {habit_id: string, completed_date: string}[]) {
-    const dates = allCompletions
-      .filter(c => c.habit_id === habitId)
-      .map(c => c.completed_date)
-      .sort((a, b) => b.localeCompare(a));
+  function calculateStreak(habitId: string, allCompletions: {habit_id: string, completed_date: string}[], isShared: boolean = false, partnerCompletions: {habit_id: string, completed_date: string}[] = []) {
+  const dates = allCompletions
+    .filter(c => c.habit_id === habitId)
+    .map(c => c.completed_date)
+    .sort((a, b) => b.localeCompare(a));
 
-    if (dates.length === 0) return 0;
+  if (dates.length === 0) return 0;
 
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    let streak = 0;
-    const startOffset = dates[0] === todayStr ? 0 : 1;
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  let streak = 0;
+  const startOffset = dates[0] === todayStr ? 0 : 1;
 
-    for (let i = 0; i < dates.length; i++) {
-      const expected = new Date(today);
-      expected.setDate(today.getDate() - (i + startOffset));
-      if (dates[i] === expected.toISOString().split('T')[0]) streak++;
-      else break;
-    }
-    return streak;
+  for (let i = 0; i < dates.length; i++) {
+    const expected = new Date(today);
+    expected.setDate(today.getDate() - (i + startOffset));
+    const expectedStr = expected.toISOString().split('T')[0];
+    if (dates[i] === expectedStr) {
+      if (isShared) {
+        const partnerDone = partnerCompletions.some(
+          c => c.habit_id === habitId && c.completed_date === expectedStr
+        );
+        if (!partnerDone) break;
+      }
+      streak++;
+    } else break;
   }
+  return streak;
+}
 
   async function onRefresh() {
     setRefreshing(true);
@@ -147,6 +175,11 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
+          {nudgeAlert && (
+  <View style={styles.nudgeAlertCard}>
+    <Text style={styles.nudgeAlertText}>👈 Partnerin seni dürtükledi!</Text>
+  </View>
+)}
           <Text style={styles.greeting}>Merhaba, {displayName} 👋</Text>
           <Text style={styles.subtitle}>Bugünkü alışkanlıkların</Text>
         </View>
@@ -162,7 +195,7 @@ export default function HomeScreen() {
         <View style={styles.warningCard}>
           <Text style={styles.warningText}>
             ⚠️ {habits.filter(h => {
-              const streak = calculateStreak(h.id, allCompletions);
+              const streak = calculateStreak(h.id, allCompletions, h.is_shared, partnerCompletions);
               return streak > 0 && !completions.includes(h.id);
             }).length} streak bugün tehlikede!
           </Text>
@@ -181,7 +214,7 @@ export default function HomeScreen() {
         }
         renderItem={({ item }) => {
           const isCompleted = completions.includes(item.id);
-          const streak = calculateStreak(item.id, allCompletions);
+          const streak = calculateStreak(item.id, allCompletions, item.is_shared, partnerCompletions);
           return (
             <TouchableOpacity
               style={[styles.habitCard, isCompleted && styles.habitCardCompleted]}
@@ -242,4 +275,6 @@ const styles = StyleSheet.create({
   milestoneText: { fontSize: 16, color: Colors.gray, textAlign: 'center', marginBottom: 24 },
   milestoneButton: { backgroundColor: Colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 },
   milestoneButtonText: { color: Colors.white, fontWeight: 'bold', fontSize: 16 },
+  nudgeAlertCard: { backgroundColor: Colors.primary, borderRadius: 12, padding: 14, marginBottom: 12 },
+  nudgeAlertText: { color: Colors.white, fontWeight: '600', fontSize: 14, textAlign: 'center' },
 });
