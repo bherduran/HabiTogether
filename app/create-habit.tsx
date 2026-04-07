@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Switch } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Colors } from '../constants/colors';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import ScreenWrapper from '../components/ScreenWrapper';
 
 
@@ -15,14 +15,33 @@ export default function CreateHabitScreen() {
   const [category, setCategory] = useState('Sağlık');
   const [isShared, setIsShared] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { editId } = useLocalSearchParams<{ editId?: string }>();
+
+    useEffect(() => {
+  if (editId) {
+    supabase.from('habits').select('*').eq('id', editId).single().then(({ data }) => {
+      if (data) {
+        setName(data.name);
+        setIcon(data.icon);
+        setCategory(data.category);
+        setIsShared(data.is_shared);
+      }
+    });
+    }
+    }, [editId]);
 
   async function handleCreate() {
-    if (!name.trim()) return Alert.alert('Hata', 'Habit adı boş olamaz');
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  if (!name.trim()) return Alert.alert('Hata', 'Habit adı boş olamaz');
+  setLoading(true);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
 
-    const { error } = await supabase.from('habits').insert({
+  if (editId) {
+    await supabase.from('habits').update({
+      name: name.trim(), icon, category, is_shared: isShared,
+    }).eq('id', editId);
+  } else {
+    await supabase.from('habits').insert({
       owner_id: user.id,
       name: name.trim(),
       icon,
@@ -30,16 +49,16 @@ export default function CreateHabitScreen() {
       is_shared: isShared,
       frequency: { type: 'daily' },
     });
-
-    setLoading(false);
-    if (error) Alert.alert('Hata', error.message);
-    else router.back();
   }
+
+  setLoading(false);
+  router.back();
+}
 
   return (
     <ScreenWrapper>
         <View style={styles.container}>
-      <Text style={styles.title}>Yeni Alışkanlık</Text>
+      <Text style={styles.title}>{editId ? 'Düzenle' : 'Yeni Alışkanlık'}</Text>
 
       <Text style={styles.label}>İkon Seç</Text>
       <View style={styles.iconRow}>

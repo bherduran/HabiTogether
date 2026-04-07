@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { Colors } from '../../constants/colors';
 import { router } from 'expo-router';
@@ -17,6 +17,8 @@ export default function HomeScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completions, setCompletions] = useState<string[]>([]); // tamamlanan habit id'leri
   const [allCompletions, setAllCompletions] = useState<{habit_id: string, completed_date: string}[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  
   //Determines Profiles
   async function getProfile() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -119,6 +121,13 @@ export default function HomeScreen() {
   return streak;
   }
 
+  //Page Refresh
+  async function onRefresh() {
+  setRefreshing(true);
+  await Promise.all([getProfile(), getHabits(), getCompletions()]);
+  setRefreshing(false);
+}
+
   return (
   <View style={styles.container}>
     <View style={styles.header}>
@@ -147,7 +156,10 @@ export default function HomeScreen() {
     <FlatList
       data={habits}
       keyExtractor={item => item.id}
-      contentContainerStyle={{ paddingTop: 16 }}
+      contentContainerStyle={{ paddingTop: 16, flexGrow: 1 }}
+      refreshControl={
+    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+  }
       ListEmptyComponent={
         <Text style={styles.empty}>Henüz alışkanlık yok. + ile ekle!</Text>
       }
@@ -158,6 +170,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[styles.habitCard, isCompleted && styles.habitCardCompleted]}
             onPress={() => toggleCompletion(item.id)}
+            onLongPress={() => router.push({ pathname: '/habit-detail', params: { id: item.id } })}
           >
             <Text style={styles.habitIcon}>{item.icon}</Text>
             <View style={styles.habitInfo}>
