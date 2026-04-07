@@ -16,6 +16,9 @@ export default function FocusScreen() {
   const [tempFocus, setTempFocus] = useState('25');
   const [tempBreak, setTempBreak] = useState('5');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [habits, setHabits] = useState<{id: string, name: string, icon: string}[]>([]);
+  const [linkedHabitId, setLinkedHabitId] = useState<string | null>(null);
+  const [showHabitPicker, setShowHabitPicker] = useState(false);
 
   useEffect(() => {
     if (isRunning) {
@@ -54,6 +57,21 @@ export default function FocusScreen() {
   }
   }
 
+  useEffect(() => {
+  loadHabits();
+}, []);
+
+async function loadHabits() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { data } = await supabase
+    .from('habits')
+    .select('id, name, icon')
+    .eq('owner_id', user.id)
+    .eq('is_archived', false);
+  if (data) setHabits(data);
+}
+
 
   async function handleTimerEnd() {
     setIsRunning(false);
@@ -69,15 +87,26 @@ export default function FocusScreen() {
   }
 
   async function saveSession() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from('focus_sessions').insert({
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from('focus_sessions').insert({
+    user_id: user.id,
+    duration_min: focusMin,
+    status: 'completed',
+    started_at: new Date().toISOString(),
+    linked_habit_id: linkedHabitId,
+  });
+
+  if (linkedHabitId) {
+    const today = new Date().toISOString().split('T')[0];
+    await supabase.from('completions').upsert({
+      habit_id: linkedHabitId,
       user_id: user.id,
-      duration_min: focusMin,
-      status: 'completed',
-      started_at: new Date().toISOString(),
+      completed_date: today,
     });
   }
+  loadHistory();
+}
 
   function reset() {
     setIsRunning(false);
@@ -130,6 +159,43 @@ export default function FocusScreen() {
         <Text style={styles.sessionsText}>
   Bugün: {sessionsCompleted} oturum · {totalFocusMin} dakika odak
 </Text>
+
+<TouchableOpacity
+  style={styles.habitLinkButton}
+  onPress={() => setShowHabitPicker(true)}
+>
+  <Text style={styles.habitLinkText}>
+    {linkedHabitId
+      ? `🔗 ${habits.find(h => h.id === linkedHabitId)?.icon} ${habits.find(h => h.id === linkedHabitId)?.name}`
+      : '🔗 Habit bağla (opsiyonel)'}
+  </Text>
+</TouchableOpacity>
+
+<Modal visible={showHabitPicker} transparent animationType="slide">
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalCard}>
+      <Text style={styles.modalTitle}>Habit Seç</Text>
+      <TouchableOpacity
+        style={styles.habitPickerItem}
+        onPress={() => { setLinkedHabitId(null); setShowHabitPicker(false); }}
+      >
+        <Text style={styles.habitPickerText}>❌ Bağlantıyı kaldır</Text>
+      </TouchableOpacity>
+      {habits.map(h => (
+        <TouchableOpacity
+          key={h.id}
+          style={[styles.habitPickerItem, linkedHabitId === h.id && styles.habitPickerSelected]}
+          onPress={() => { setLinkedHabitId(h.id); setShowHabitPicker(false); }}
+        >
+          <Text style={styles.habitPickerText}>{h.icon} {h.name}</Text>
+        </TouchableOpacity>
+      ))}
+      <TouchableOpacity onPress={() => setShowHabitPicker(false)}>
+        <Text style={styles.modalCancel}>İptal</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
 
         <Modal visible={showSettings} transparent animationType="slide">
           <KeyboardAvoidingView 
@@ -191,4 +257,9 @@ const styles = StyleSheet.create({
   modalButton: { backgroundColor: Colors.primary, padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 8 },
   modalButtonText: { color: Colors.white, fontWeight: 'bold', fontSize: 16 },
   modalCancel: { textAlign: 'center', color: Colors.gray, padding: 8 },
+  habitLinkButton: { marginTop: 16, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.white },  
+  habitLinkText: { color: Colors.gray, textAlign: 'center', fontSize: 14 },
+  habitPickerItem: { padding: 14, borderRadius: 8, marginBottom: 8, backgroundColor: Colors.primaryLight },
+  habitPickerSelected: { backgroundColor: Colors.primary },
+  habitPickerText: { fontSize: 15, color: Colors.black },
 });

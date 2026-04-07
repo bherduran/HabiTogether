@@ -93,6 +93,26 @@ export default function HomeScreen() {
     getProfile();
     getHabits();
     getCompletions();
+
+    const channel = supabase
+    .channel('home-completions')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'completions',
+    }, () => {
+      getCompletions();
+    })
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'habits',
+    }, () => {
+      getHabits();
+    })
+    .subscribe();
+
+  return () => { supabase.removeChannel(channel); };
   }, []);
 
   //Calculates Streak
