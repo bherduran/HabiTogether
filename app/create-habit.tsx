@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Switch } fr
 import { supabase } from '../lib/supabase';
 import { Colors } from '../constants/colors';
 import { router } from 'expo-router';
+import ScreenWrapper from '../components/ScreenWrapper';
+
 
 const CATEGORIES = ['Sağlık', 'Spor', 'Öğrenme', 'İlişki', 'Diğer'];
 const ICONS = ['💪', '📚', '🧘', '💑', '🏃', '💧', '🎯', '🌱'];
@@ -35,7 +37,8 @@ export default function CreateHabitScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenWrapper>
+        <View style={styles.container}>
       <Text style={styles.title}>Yeni Alışkanlık</Text>
 
       <Text style={styles.label}>İkon Seç</Text>
@@ -88,12 +91,13 @@ export default function CreateHabitScreen() {
       <TouchableOpacity onPress={() => router.back()}>
         <Text style={styles.cancel}>İptal</Text>
       </TouchableOpacity>
-    </View>
+      </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, backgroundColor: Colors.primaryLight },
+  container: { flex: 1, padding: 24 },
   title: { fontSize: 24, fontWeight: 'bold', color: Colors.black, marginTop: 48, marginBottom: 24 },
   label: { fontSize: 14, fontWeight: '600', color: Colors.black, marginBottom: 8, marginTop: 16 },
   input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 8, padding: 12, backgroundColor: Colors.white },

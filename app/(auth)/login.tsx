@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { router } from 'expo-router';
 import { Colors } from '../../constants/colors';
+import ScreenWrapper from '../../components/ScreenWrapper';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -18,11 +19,7 @@ export default function LoginScreen() {
   }
 
   return (
-  <KeyboardAvoidingView 
-    style={{ flex: 1 }} 
-    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-  >
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <ScreenWrapper>
       <View style={styles.container}>
         <Text style={styles.title}>HabiTogether 💕</Text>
         <TextInput
@@ -47,13 +44,12 @@ export default function LoginScreen() {
           <Text style={styles.link}>Hesabın yok mu? Kayıt ol</Text>
         </TouchableOpacity>
       </View>
-    </TouchableWithoutFeedback>
-  </KeyboardAvoidingView>
-);
+    </ScreenWrapper>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: Colors.primaryLight },
+  container: { flex: 1, justifyContent: 'center', padding: 24 },
   title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 32, color: Colors.black },
   input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 8, padding: 12, marginBottom: 12, backgroundColor: Colors.white },
   button: { backgroundColor: Colors.primary, padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 12 },
