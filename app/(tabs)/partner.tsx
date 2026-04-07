@@ -26,7 +26,25 @@ export default function PartnerScreen() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadProfile();
+  loadProfile();
+  }, []);
+
+    
+  useEffect(() => {
+    if (!partnerProfile) return;
+
+    const channel = supabase
+    .channel('partner-completions')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'completions',
+    }, () => {
+      if (partnerProfile) loadPartner(partnerProfile.id);
+    })
+    .subscribe();
+
+  return () => { supabase.removeChannel(channel); };
   }, []);
 
   async function loadProfile() {
