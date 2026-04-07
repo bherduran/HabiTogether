@@ -1,0 +1,74 @@
+import { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { supabase } from '../../lib/supabase';
+import { router } from 'expo-router';
+
+export default function RegisterScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleRegister() {
+    setLoading(true);
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      setLoading(false);
+      Alert.alert('Hata', error.message);
+      return;
+    }
+    if (data.user) {
+      const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      await supabase.from('profiles').insert({
+        id: data.user.id,
+        display_name: displayName,
+        invite_code: inviteCode,
+      });
+    }
+    setLoading(false);
+    Alert.alert('Başarılı', 'Hesabın oluşturuldu! Giriş yapabilirsin.');
+    router.replace('/(auth)/login');
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Kayıt Ol 🌿</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="İsim"
+        value={displayName}
+        onChangeText={setDisplayName}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Şifre"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
+      <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+        <Text style={styles.buttonText}>{loading ? 'Kaydediliyor...' : 'Kayıt Ol'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+        <Text style={styles.link}>Zaten hesabın var mı? Giriş yap</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' },
+  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 32 },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12 },
+  button: { backgroundColor: '#4CAF50', padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 12 },
+  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  link: { textAlign: 'center', color: '#4CAF50' },
+});
