@@ -16,7 +16,8 @@ export default function HomeScreen() {
   const [displayName, setDisplayName] = useState('');
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completions, setCompletions] = useState<string[]>([]); // tamamlanan habit id'leri
-
+  const [allCompletions, setAllCompletions] = useState<{habit_id: string, completed_date: string}[]>([]);
+  //Determines Profiles
   async function getProfile() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -29,6 +30,8 @@ export default function HomeScreen() {
     }
   }
 
+
+  //Gets Profiles Habits
   async function getHabits() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -41,17 +44,26 @@ export default function HomeScreen() {
     if (data) setHabits(data);
   }
 
+  //Gets Completed Habits & Helps Streak 
   async function getCompletions() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
   const today = new Date().toISOString().split('T')[0];
-  const { data } = await supabase
+  const { data: todayData } = await supabase
     .from('completions')
     .select('habit_id')
     .eq('user_id', user.id)
     .eq('completed_date', today);
-  if (data) setCompletions(data.map(c => c.habit_id));
+  if (todayData) setCompletions(todayData.map(c => c.habit_id));
+
+  const { data: allData } = await supabase
+    .from('completions')
+    .select('habit_id, completed_date')
+    .eq('user_id', user.id);
+  if (allData) setAllCompletions(allData);
   }
+
+  //Determines A Habit Is Completed
   async function toggleCompletion(habitId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
@@ -79,6 +91,28 @@ export default function HomeScreen() {
     getCompletions();
   }, []);
 
+  //Calculates Streak
+  function calculateStreak(habitId: string, allCompletions: {habit_id: string, completed_date: string}[]) {
+  const dates = allCompletions
+    .filter(c => c.habit_id === habitId)
+    .map(c => c.completed_date)
+    .sort((a, b) => b.localeCompare(a));
+
+  if (dates.length === 0) return 0;
+
+  let streak = 0;
+  const today = new Date();
+
+  for (let i = 0; i < dates.length; i++) {
+    const expected = new Date(today);
+    expected.setDate(today.getDate() - i);
+    const expectedStr = expected.toISOString().split('T')[0];
+    if (dates[i] === expectedStr) streak++;
+    else break;
+  }
+  return streak;
+}
+
   return (
   <View style={styles.container}>
     <View style={styles.header}>
@@ -100,6 +134,7 @@ export default function HomeScreen() {
       }
       renderItem={({ item }) => {
         const isCompleted = completions.includes(item.id);
+        const streak = calculateStreak(item.id, allCompletions);
         return (
           <TouchableOpacity
             style={[styles.habitCard, isCompleted && styles.habitCardCompleted]}
@@ -109,6 +144,7 @@ export default function HomeScreen() {
             <View style={styles.habitInfo}>
               <Text style={[styles.habitName, isCompleted && styles.habitNameCompleted]}>{item.name}</Text>
               <Text style={styles.habitCategory}>{item.category} {item.is_shared ? '· Ortak 💕' : ''}</Text>
+              {streak > 0 && <Text style={styles.streak}>🔥 {streak} gün</Text>}
             </View>
             <Text style={styles.checkbox}>{isCompleted ? '✅' : '⬜'}</Text>
           </TouchableOpacity>
@@ -135,4 +171,5 @@ const styles = StyleSheet.create({
   habitCardCompleted: { opacity: 0.6 },
   habitNameCompleted: { textDecorationLine: 'line-through', color: Colors.gray },
   checkbox: { fontSize: 24 },
+  streak: { fontSize: 12, color: Colors.accent, marginTop: 2, fontWeight: '600' },
 });
