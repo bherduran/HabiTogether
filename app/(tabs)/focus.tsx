@@ -19,6 +19,8 @@ export default function FocusScreen() {
   const [habits, setHabits] = useState<{id: string, name: string, icon: string}[]>([]);
   const [linkedHabitId, setLinkedHabitId] = useState<string | null>(null);
   const [showHabitPicker, setShowHabitPicker] = useState(false);
+  const [partnerStatus, setPartnerStatus] = useState<'idle' | 'focusing' | 'break'>('idle');
+  const [partnerName, setPartnerName] = useState('');
 
   useEffect(() => {
     if (isRunning) {
@@ -72,6 +74,55 @@ async function loadHabits() {
   if (data) setHabits(data);
 }
 
+useEffect(() => {
+  loadPartnerStatus();
+
+  const channel = supabase
+    .channel('partner-focus')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'focus_sessions',
+    }, () => {
+      loadPartnerStatus();
+    })
+    .subscribe();
+
+  return () => { supabase.removeChannel(channel); };
+}, []);
+
+async function loadPartnerStatus() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('partner_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile?.partner_id) return;
+
+  const { data: partnerData } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', profile.partner_id)
+    .single();
+  if (partnerData) setPartnerName(partnerData.display_name);
+
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { data: session } = await supabase
+    .from('focus_sessions')
+    .select('status, started_at, duration_min')
+    .eq('user_id', profile.partner_id)
+    .eq('status', 'active')
+    .gte('started_at', fiveMinAgo)
+    .single();
+
+  if (session) setPartnerStatus('focusing');
+  else setPartnerStatus('idle');
+}
+
 
   async function handleTimerEnd() {
     setIsRunning(false);
@@ -85,6 +136,21 @@ async function loadHabits() {
       setSeconds(focusMin * 60);
     }
   }
+
+  async function startSession() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from('focus_sessions').insert({
+    user_id: user.id,
+    duration_min: focusMin,
+    status: 'active',
+    started_at: new Date().toISOString(),
+    linked_habit_id: linkedHabitId,
+  });
+  setIsRunning(true);
+}
+
+
 
   async function saveSession() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -151,14 +217,25 @@ async function loadHabits() {
           <TouchableOpacity style={styles.resetButton} onPress={reset}>
             <Text style={styles.resetText}>↺</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.playButton} onPress={() => setIsRunning(prev => !prev)}>
+          <TouchableOpacity style={styles.playButton} onPress={() => isRunning ? setIsRunning(false) : startSession()}>
             <Text style={styles.playText}>{isRunning ? '⏸' : '▶'}</Text>
           </TouchableOpacity>
         </View>
 
+          {partnerName ? (
+         <View style={styles.partnerStatusCard}>
+          <Text style={styles.partnerStatusText}>
+             {partnerStatus === 'focusing' ? '🎯' : '💤'} {partnerName}:{' '}
+              {partnerStatus === 'focusing' ? 'Odaklanıyor' : 'Boşta'}
+          </Text>
+         </View>
+            ) : null}
+
+
+
         <Text style={styles.sessionsText}>
-  Bugün: {sessionsCompleted} oturum · {totalFocusMin} dakika odak
-</Text>
+          Bugün: {sessionsCompleted} oturum · {totalFocusMin} dakika odak
+        </Text>
 
 <TouchableOpacity
   style={styles.habitLinkButton}
@@ -262,4 +339,6 @@ const styles = StyleSheet.create({
   habitPickerItem: { padding: 14, borderRadius: 8, marginBottom: 8, backgroundColor: Colors.primaryLight },
   habitPickerSelected: { backgroundColor: Colors.primary },
   habitPickerText: { fontSize: 15, color: Colors.black },
+  partnerStatusCard: { marginTop: 24, padding: 12, borderRadius: 8, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border },
+  partnerStatusText: { textAlign: 'center', fontSize: 14, color: Colors.black },
 });
