@@ -11,6 +11,7 @@ export default function FocusScreen() {
   const [isRunning, setIsRunning] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
   const [sessionsCompleted, setSessionsCompleted] = useState(0);
+  const [totalFocusMin, setTotalFocusMin] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [tempFocus, setTempFocus] = useState('25');
   const [tempBreak, setTempBreak] = useState('5');
@@ -32,6 +33,27 @@ export default function FocusScreen() {
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [isRunning]);
+
+    useEffect(() => {
+  loadHistory();
+    }, []);
+
+  async function loadHistory() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await supabase
+    .from('focus_sessions')
+    .select('duration_min')
+    .eq('user_id', user.id)
+    .eq('status', 'completed')
+    .gte('started_at', today);
+  if (data) {
+    setSessionsCompleted(data.length);
+    setTotalFocusMin(data.reduce((sum, s) => sum + s.duration_min, 0));
+  }
+  }
+
 
   async function handleTimerEnd() {
     setIsRunning(false);
@@ -105,7 +127,9 @@ export default function FocusScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sessionsText}>Bugün tamamlanan: {sessionsCompleted} oturum</Text>
+        <Text style={styles.sessionsText}>
+  Bugün: {sessionsCompleted} oturum · {totalFocusMin} dakika odak
+</Text>
 
         <Modal visible={showSettings} transparent animationType="slide">
           <KeyboardAvoidingView 
