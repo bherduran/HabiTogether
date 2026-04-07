@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { router } from 'expo-router';
+import { Colors } from '../../constants/colors';
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
@@ -65,10 +66,10 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' },
-  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 32 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 12 },
-  button: { backgroundColor: '#4CAF50', padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 12 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  link: { textAlign: 'center', color: '#4CAF50' },
+  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: Colors.primaryLight },
+  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 32, color: Colors.black },
+  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: 8, padding: 12, marginBottom: 12, backgroundColor: Colors.white },
+  button: { backgroundColor: Colors.primary, padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 12 },
+  buttonText: { color: Colors.white, fontWeight: 'bold', fontSize: 16 },
+  link: { textAlign: 'center', color: Colors.primary },
 });
