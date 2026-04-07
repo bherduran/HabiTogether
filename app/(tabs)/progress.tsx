@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { Colors } from '../../constants/colors';
 import ScreenWrapper from '../../components/ScreenWrapper';
+import { BarChart } from 'react-native-chart-kit';
+import { Dimensions } from 'react-native';
 
 type HabitStat = {
   id: string;
@@ -15,6 +17,7 @@ type HabitStat = {
 export default function ProgressScreen() {
   const [stats, setStats] = useState<HabitStat[]>([]);
   const [totalThisWeek, setTotalThisWeek] = useState(0);
+  const [weeklyData, setWeeklyData] = useState<number[]>([0,0,0,0,0,0,0]);
 
   useEffect(() => {
     loadStats();
@@ -67,6 +70,16 @@ export default function ProgressScreen() {
 
     setStats(habitStats);
     setTotalThisWeek(habitStats.reduce((sum, h) => sum + h.weeklyCount, 0));
+    const days = Array.from({ length: 7 }, (_, i) => {
+  const d = new Date();
+  d.setDate(d.getDate() - (6 - i));
+  return d.toISOString().split('T')[0];
+});
+
+const dailyCounts = days.map(day =>
+  completions.filter(c => c.completed_date === day).length
+);
+setWeeklyData(dailyCounts);
   }
 
   return (
@@ -78,6 +91,28 @@ export default function ProgressScreen() {
           <Text style={styles.summaryNumber}>{totalThisWeek}</Text>
           <Text style={styles.summaryLabel}>Bu hafta tamamlanan</Text>
         </View>
+        <Text style={styles.sectionTitle}>Bu Hafta</Text>
+<BarChart
+  data={{
+    labels: ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'],
+    datasets: [{ data: weeklyData }],
+  }}
+  width={Dimensions.get('window').width - 48}
+  height={180}
+  chartConfig={{
+    backgroundColor: Colors.white,
+    backgroundGradientFrom: Colors.white,
+    backgroundGradientTo: Colors.white,
+    color: () => Colors.primary,
+    labelColor: () => Colors.gray,
+    barPercentage: 0.6,
+  }}
+  style={{ borderRadius: 12, marginBottom: 24 }}
+  showValuesOnTopOfBars
+  withInnerLines={false}
+  yAxisLabel=""
+  yAxisSuffix=""
+/>
 
         <Text style={styles.sectionTitle}>Alışkanlık Streakları</Text>
 
