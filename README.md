@@ -154,6 +154,20 @@ Scan the QR code with Expo Go.
 
 ---
 
+## Roadmap
+
+- [ ] Push notifications (daily reminders, streak-at-risk alerts)
+- [ ] Dark mode
+- [ ] Language support (English / Turkish)
+- [ ] Habit templates (starter packs for couples)
+- [ ] Photo proof on habit completion
+- [ ] Weekly summary notifications
+- [ ] App Store / Google Play release
+
+
+---
+
+
 ## Developer
 
 **Bilge Han Erduran** — April 2026
